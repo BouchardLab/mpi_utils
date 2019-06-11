@@ -1,10 +1,10 @@
-import h5py, pytest
+import pytest
 import numpy as np
-
 from numpy.testing import assert_array_equal
 from mpi4py import MPI
 
-from pyuoi.mpi_utils import Bcast_from_root, Gatherv_rows,
+from mpi_utils.ndarray import (Bcast_from_root, Gatherv_rows,
+                               Gather_ndlist)
 
 
 @pytest.mark.skipif(MPI is None, reason='MPI not installed.')
@@ -92,3 +92,33 @@ def test_Gatherv_random_rows():
 
     if rank == root:
         assert(data.shape[0] == np.sum(sizes))
+
+
+@pytest.mark.skipif(MPI is None, reason='MPI not installed.')
+def test_Gather_ndlist():
+    """Test Gather_ndlist for concatenating lists of various lengths,
+    with each element being an nd-array of various dimension"""
+
+    comm = MPI.COMM_WORLD
+    root = 0
+    rank = comm.rank
+    numprocs = comm.size
+
+    # generate list of differently sized np arrays
+    size = rank + 1
+    data = [rank * np.ones((size, size)) for i in range(size)]
+
+    data = Gather_ndlist(data, comm, root=root)
+
+    # Check dimensions
+    if rank == root:
+        print(data)
+        # Expected number of arrays and respective dimensions
+        narrays = np.sum([(n + 1) for n in range(numprocs)])
+        array_shapes = []
+        for n in range(numprocs):
+            array_shapes.extend((n + 1) * [(n + 1, n + 1)])
+
+        assert(len(data) == narrays)
+        assert(np.all([data[i].shape == array_shapes[i]
+                      for i in range(narrays)]))

@@ -78,5 +78,73 @@ def Gatherv_rows(send, comm, root=0):
         sizes = None
         disps = None
 
-    comm.Gatherv(send, [rec, sizes, disps, _np2mpi[dtype]], root=0)
+    comm.Gatherv(send, [rec, sizes, disps, _np2mpi[dtype]], root=root)
     return rec
+
+
+def Gather_ndlist(send, comm, root=0):
+    """Gather a list of arbitrarily shaped ndarrays by ravelling the arrays,
+    gathering using gatherv_rows, and then reshaping at root. Also gathers the
+    needed shape information. All arrays should be the same dtype
+
+    Parameters
+    ----------
+    send : list of ndarrays
+        The list of ndarrays to concatenate. Arrays may be arbitrarily shaped.
+    comm : MPI.COMM_WORLD
+        MPI communicator.
+    root : int, default 0
+        This rank will contain the concatenated list of arrays
+
+    Returns
+    -------
+    rec : ndarray or None
+        Final concatenated list of arrays on root, or None on other ranks.
+    """
+
+    rank = comm.rank
+    dtype = send[0].dtype
+    shapes = [x.shape for x in send]
+
+    # Gather size tuples - this is a list of lists of tuples
+    rank_shapes = comm.gather(shapes, root=root)
+
+    # Ravel list of arrays
+    raveled_arrays = np.array([arr.ravel() for arr in send]).ravel()
+
+    if rank == root:
+        # Sizes of each of the raveled arrays
+        sizes = [np.sum([np.product(tup) for tup in tup_list])
+                 for tup_list in rank_shapes]
+        total_length = np.sum(sizes)
+        rec = np.empty(total_length, dtype=dtype)
+        # Location in rec where each incoming object should be placed
+        displs = np.insert(np.cumsum(sizes), 0, 0)[:-1]
+    else:
+        sizes = None
+        total_length = None
+        rec = None
+        displs = None
+
+    # Stack end to end
+    comm.Gatherv(raveled_arrays, [rec, sizes, displs, _np2mpi[dtype]],
+                 root=root)
+
+    # Separate and re-shape
+    if rank == root:
+
+        # Flatten list of lists of shapes into a list of shapes
+        rank_shapes = [tup for tup_list in rank_shapes for tup in tup_list]
+
+        # Separate
+        rank_sizes = [np.product(tup) for tup in rank_shapes]
+        split_locs = np.cumsum(rank_sizes)[:-1]
+        array_list = np.array_split(rec, split_locs)
+
+        # Re-shape
+        array_list = [np.reshape(array_list[i], rank_shapes[i])
+                      for i in range(len(rank_shapes))]
+    else:
+        array_list = None
+
+    return array_list
