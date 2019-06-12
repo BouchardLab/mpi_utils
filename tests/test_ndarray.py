@@ -117,8 +117,9 @@ def test_Gather_ndlist():
 
         expected_arrays = []
         for n in range(numprocs):
-            expected_arrays.extend([np.arange((n + 1)**2).reshape(n + 1, n + 1) for i in range(n)])
-
+            expected_arrays.extend([np.arange((n + 1)**2).reshape(n + 1, n + 1)
+                                    for i in range(n + 1)])
+        print(expected_arrays)
         array_shapes = [arr.shape for arr in expected_arrays]
 
         # Right number of arrays?
@@ -129,4 +130,5 @@ def test_Gather_ndlist():
                       for i in range(narrays)]))
 
         # Right values in each array?
-        assert(np.all(np.array_equal(data[i], expected_arrays[i])))
+        assert(np.all([np.array_equal(data[i], expected_arrays[i])
+                       for i in range(narrays)]))
