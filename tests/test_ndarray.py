@@ -106,19 +106,27 @@ def test_Gather_ndlist():
 
     # generate list of differently sized np arrays
     size = rank + 1
-    data = [rank * np.ones((size, size)) for i in range(size)]
+    data = [np.arange(size**2).reshape(size, size) for i in range(size)]
 
     data = Gather_ndlist(data, comm, root=root)
 
     # Check dimensions
     if rank == root:
-        print(data)
         # Expected number of arrays and respective dimensions
         narrays = np.sum([(n + 1) for n in range(numprocs)])
-        array_shapes = []
-        for n in range(numprocs):
-            array_shapes.extend((n + 1) * [(n + 1, n + 1)])
 
+        expected_arrays = []
+        for n in range(numprocs):
+            expected_arrays.extend([np.arange((n + 1)**2).reshape(n + 1, n + 1) for i in range(n)])
+
+        array_shapes = [arr.shape for arr in expected_arrays]
+
+        # Right number of arrays?
         assert(len(data) == narrays)
+
+        # Right dimensions in each array?
         assert(np.all([data[i].shape == array_shapes[i]
                       for i in range(narrays)]))
+
+        # Right values in each array?
+        assert(np.all(np.array_equal(data[i], expected_arrays[i])))

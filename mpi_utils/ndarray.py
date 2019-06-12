@@ -83,9 +83,10 @@ def Gatherv_rows(send, comm, root=0):
 
 
 def Gather_ndlist(send, comm, root=0):
-    """Gather a list of arbitrarily shaped ndarrays by ravelling the arrays,
-    gathering using gatherv_rows, and then reshaping at root. Also gathers the
-    needed shape information. All arrays should be the same dtype
+    """Gather lists of arbitrarily shaped ndarrays at each rank into a single
+    concatenated list of ndarrays on root. Works by raveling and concatenating
+    the arrays at each rank, gathering using Gatherv, and then separating and
+    reshaping the arrays on root. All arrays should be the same dtype.
 
     Parameters
     ----------
@@ -98,7 +99,7 @@ def Gather_ndlist(send, comm, root=0):
 
     Returns
     -------
-    rec : ndarray or None
+    array_list : list of ndarrays or None
         Final concatenated list of arrays on root, or None on other ranks.
     """
 
