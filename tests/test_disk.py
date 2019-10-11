@@ -20,20 +20,10 @@ def test_load_data_MPI(tmpdir):
     if rank == root:
         with h5py.File(str(fname), 'w') as f:
             f.create_dataset('X', data=X)
-            f.create_dataset('Xp', data=X)
             f.create_dataset('y', data=y)
-            f.create_dataset('yp', data=y)
 
     # Default keys
-    X_load, y_load = load_data_MPI(fname)
-    if rank == root:
-        assert_array_equal(X, X_load)
-        assert_array_equal(y, y_load)
-
-    # Set keys
-    X_load, y_load = load_data_MPI(fname,
-                                   X_key='Xp',
-                                   y_key='yp')
+    X_load, y_load = load_data_MPI(fname, keys=['X', 'y'])
     if rank == root:
         assert_array_equal(X, X_load)
         assert_array_equal(y, y_load)

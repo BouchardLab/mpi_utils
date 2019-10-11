@@ -119,7 +119,6 @@ def test_Gather_ndlist():
         for n in range(numprocs):
             expected_arrays.extend([np.arange((n + 1)**2).reshape(n + 1, n + 1)
                                     for i in range(n + 1)])
-        print(expected_arrays)
         array_shapes = [arr.shape for arr in expected_arrays]
 
         # Right number of arrays?
@@ -132,3 +131,67 @@ def test_Gather_ndlist():
         # Right values in each array?
         assert(np.all([np.array_equal(data[i], expected_arrays[i])
                        for i in range(narrays)]))
+
+
+@pytest.mark.skipif(MPI is None, reason='MPI not installed.')
+@pytest.mark.xfail(reason=ValueError)
+def test_Bcast_from_root_non_ndarray():
+    """Checks that Bcast_from_root throws an error if a non ndarray is passed.
+    """
+
+    comm = MPI.COMM_WORLD
+    root = 0
+    rank = comm.rank
+
+    if rank == root:
+        data = [1, 2, 3]
+    else:
+        data = None
+    Bcast_from_root(data, comm=comm)
+
+
+@pytest.mark.skipif(MPI is None, reason='MPI not installed.')
+@pytest.mark.xfail(reason=ValueError)
+def test_Gatherv_rows_non_ndarray():
+    """Checks that Gatherv_rows throws an error if a non ndarray is passed.
+    """
+
+    comm = MPI.COMM_WORLD
+    root = 0
+    rank = comm.rank
+
+    data = [1, 2, 3]
+    Gatherv_rows(data, comm=comm)
+
+
+@pytest.mark.skipif(MPI is None, reason='MPI not installed.')
+def test_non_contiguous_ndarray_Bcast():
+    """Checks that Bcast_from_root works with noncontiguous arrays.
+    """
+
+    comm = MPI.COMM_WORLD
+    root = 0
+    rank = comm.rank
+
+    if rank == root:
+        data = np.random.randn(10, 10).T
+        if data.flags['C_CONTIGUOUS']:
+            raise ValueError('Should not have been contiguous.')
+    else:
+        data = None
+    Bcast_from_root(data, comm=comm)
+
+
+@pytest.mark.skipif(MPI is None, reason='MPI not installed.')
+def test_non_contiguous_ndarray_Gatherv():
+    """Checks that Bcast_from_root works with noncontiguous arrays.
+    """
+
+    comm = MPI.COMM_WORLD
+    root = 0
+    rank = comm.rank
+
+    data = np.random.randn(10, 10).T
+    if data.flags['C_CONTIGUOUS']:
+        raise ValueError('Should not have been contiguous.')
+    Gatherv_rows(data, comm=comm)

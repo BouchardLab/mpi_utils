@@ -4,7 +4,7 @@ Functions that help with dealing with multidimensional ndarrays.
 import numpy as np
 
 from mpi4py import MPI
-from .utils import _np2mpi
+from .utils import _np2mpi, check_valid_ndarray
 
 
 def Bcast_from_root(send, comm, root=0):
@@ -25,6 +25,7 @@ def Bcast_from_root(send, comm, root=0):
     send : ndarray
         Each rank will have a copy of the array from root.
     """
+    check_valid_ndarray(send)
     rank = comm.rank
     if rank == 0:
         dtype = send.dtype
@@ -58,7 +59,7 @@ def Gatherv_rows(send, comm, root=0):
     rec : ndarray or None
         Gatherv'ed array on root or None on other ranks.
     """
-
+    check_valid_ndarray(send)
     rank = comm.rank
     dtype = send.dtype
     shape = send.shape
@@ -103,6 +104,7 @@ def Gather_ndlist(send, comm, root=0):
         Final concatenated list of arrays on root, or None on other ranks.
     """
 
+    [check_valid_ndarray(s) for s in send]
     rank = comm.rank
     dtype = send[0].dtype
     shapes = [x.shape for x in send]

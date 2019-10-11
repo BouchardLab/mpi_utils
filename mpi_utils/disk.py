@@ -3,11 +3,12 @@ Helper functions for working with MPI.
 """
 import h5py
 import numpy as np
+from mpi4py import MPI
 
 from .utils import _np2mpi
 
 
-def load_data_MPI(h5_name, keys, root=0):
+def load_data_MPI(h5_name, keys, root=0, comm=None):
     """Load data from an h5 file and broadcast it across MPI ranks.
 
     This is a helper function. It is also possible to load the data
@@ -25,32 +26,29 @@ def load_data_MPI(h5_name, keys, root=0):
     Returns
     -------
     X : ndarray
-        Features on all MPI ranks.
+        Features on all MPI ranks.i
     y : ndarray
         Targets on all MPI ranks.
     """
 
-    comm = MPI.COMM_WORLD
+    if isinstance(keys, str):
+        keys = [keys]
+    if comm is None:
+        comm = MPI.COMM_WORLD
     rank = comm.rank
-    Xshape = None
-    Xdtype = None
-    yshape = None
-    ydtype = None
+    shapes = [None] * len(keys)
+    dtypes = [None] * len(keys)
     if rank == root:
         with h5py.File(h5_name, 'r') as f:
-            X = f[X_key][()]
-            Xshape = X.shape
-            Xdtype = X.dtype
-            y = f[y_key][()]
-            yshape = y.shape
-            ydtype = y.dtype
-    Xshape = comm.bcast(Xshape, root=root)
-    Xdtype = comm.bcast(Xdtype, root=root)
-    yshape = comm.bcast(yshape, root=root)
-    ydtype = comm.bcast(ydtype, root=root)
+            arrays = [f[key][:] for key in keys]
+            shapes = [f[key].shape for key in keys]
+            dtypes = [f[key].dtype for key in keys]
+
+    shapes = [comm.bcast(shape, root=root) for shape in shapes]
+    dtypes = [comm.bcast(dtypes, root=root) for dtype in dtypes]
     if rank != root:
-        X = np.empty(Xshape, dtype=Xdtype)
-        y = np.empty(yshape, dtype=ydtype)
-    comm.Bcast([X, _np2mpi[np.dtype(X.dtype)]], root=root)
-    comm.Bcast([y, _np2mpi[np.dtype(y.dtype)]], root=root)
-    return X, y
+        arrays = [np.empty(shape, dtype=dtype)
+                  for shape, dtype in zip(shapes, dtypes)]
+    [comm.Bcast([arr, _np2mpi[np.dtype(arr.dtype)]], root=root)
+     for arr in arrays]
+    return tuple(arrays)
