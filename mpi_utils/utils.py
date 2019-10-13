@@ -15,6 +15,8 @@ _np2mpi = {np.dtype(np.float32): MPI.FLOAT,
 def check_valid_ndarray(X):
     """Checks whether X is a ndarray and returns a contiguous version.
     """
+    if X is None:
+        return X
     if not isinstance(X, np.ndarray):
         raise ValueError('Must be a numpy ndarray.')
     return np.ascontiguousarray(X)
